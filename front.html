@@ -1,0 +1,245 @@
+<script>
+    // Loading Persistence
+    // https://github.com/SimonLammer/anki-persistence
+    // v0.5.2 - https://github.com/SimonLammer/anki-persistence/blob/62463a7f63e79ce12f7a622a8ca0beb4c1c5d556/script.js
+    if (void 0 === window.Persistence) { var _persistenceKey = "github.com/SimonLammer/anki-persistence/", _defaultKey = "_default"; if (window.Persistence_sessionStorage = function () { var e = !1; try { "object" == typeof window.sessionStorage && (e = !0, this.clear = function () { for (var e = 0; e < sessionStorage.length; e++) { var t = sessionStorage.key(e); 0 == t.indexOf(_persistenceKey) && (sessionStorage.removeItem(t), e--) } }, this.setItem = function (e, t) { void 0 == t && (t = e, e = _defaultKey), sessionStorage.setItem(_persistenceKey + e, JSON.stringify(t)) }, this.getItem = function (e) { return void 0 == e && (e = _defaultKey), JSON.parse(sessionStorage.getItem(_persistenceKey + e)) }, this.removeItem = function (e) { void 0 == e && (e = _defaultKey), sessionStorage.removeItem(_persistenceKey + e) }) } catch (e) { } this.isAvailable = function () { return e } }, window.Persistence_windowKey = function (e) { var t = window[e], i = !1; "object" == typeof t && (i = !0, this.clear = function () { t[_persistenceKey] = {} }, this.setItem = function (e, i) { void 0 == i && (i = e, e = _defaultKey), t[_persistenceKey][e] = i }, this.getItem = function (e) { return void 0 == e && (e = _defaultKey), t[_persistenceKey][e] || null }, this.removeItem = function (e) { void 0 == e && (e = _defaultKey), delete t[_persistenceKey][e] }, void 0 == t[_persistenceKey] && this.clear()), this.isAvailable = function () { return i } }, window.Persistence = new Persistence_sessionStorage, Persistence.isAvailable() || (window.Persistence = new Persistence_windowKey("py")), !Persistence.isAvailable()) { var titleStartIndex = window.location.toString().indexOf("title"), titleContentIndex = window.location.toString().indexOf("main", titleStartIndex); titleStartIndex > 0 && titleContentIndex > 0 && titleContentIndex - titleStartIndex < 10 && (window.Persistence = new Persistence_windowKey("qt")) } }
+</script>
+
+
+<!-- copyright (c) 2023 Xia Shuangxi <xiashuangxi@hotmail.com> -->
+
+<!-- Question -->
+<p>{{Question}}</p>
+
+<!-- Options -->
+<div id='options'></div>
+
+<!-- Hidden -->
+<div style='display: none;' id='H_O_1'>{{O_1}}</div>
+<div style='display: none;' id='H_O_2'>{{O_2}}</div>
+<div style='display: none;' id='H_O_3'>{{O_3}}</div>
+<div style='display: none;' id='H_O_4'>{{O_4}}</div>
+<div style='display: none;' id='H_O_5'>{{O_5}}</div>
+<div style='display: none;'id='Answers'>{{Answers}}</div>
+<!-- <div class='hidden' id='Answers'>1 1 1 0 0</div> -->
+
+<!-- Scritp -->
+<script>
+
+    function generateOptions() {
+        let options = []
+
+        // 0=yes/no; 1=Radio; 2=Multiple selection;
+        // default 1
+        let type = 1;
+
+        let options_data = Persistence.getItem('options');
+        
+        if (options_data == null) {
+            options_data = [];
+        }
+
+
+        // [0] [1] [2] [3]
+        // O_1 O_2 O_3 O_4
+        let answers = document.getElementById('Answers').innerHTML.split(/\s+|\-|\,|\|/);
+
+        for(i = 1; true; i++ ){
+            let option = document.getElementById('H_O_' + i);
+            if (option != undefined  && option.innerHTML != ''){
+
+                let opt = Array.from(options_data).find( o => {
+                    return o['id'].replace('H_', '') == 'O_' + i;
+                }) || {};
+
+                options.push({
+                    'id': 'O_' + i,
+                    // 'tag': String.fromCharCode( i + OPTION_TAG_S_NUMBER -1),
+                    'answer': answers[i-1] == '1' ? true : false,
+                    'value': option.innerHTML,
+                    'checked': opt['checked'] || false,
+                    'checked_value': opt['checked_value'] || null,
+                });
+
+            }else {
+                break;
+            }
+        }
+        options = shuffle_order(options)
+
+        if (options.length == 1) {
+            type = 0;
+        }
+
+        if (options.length == 4) {
+            type = 1;
+        }
+
+        if (options.length > 4) {
+            type = 2;
+        }
+
+        let options_el = document.getElementById('options');
+        options_el.innerHTML = '';
+
+        let inx = 0;
+        options.map( o => {
+
+            o['tag'] = String.fromCharCode( inx + 65);
+            inx++;
+            
+            let option_label = '';
+            let option_type = '';
+            let option_html = '';
+            let checked = o['checked'] ? 'checked':'';
+
+            if (type == 0 ) {
+
+                let opt = options.find( f => {
+                    return f['id'] = o['id'];
+                }) || {};
+
+                let checked_1 = '';
+                let checked_2 = '';
+
+                let checked_value = opt['checked_value'] || null;
+                if (checked_value != null ) {
+                    if (checked_value == '1') {
+                        checked_1 = 'checked';
+                        checked_2 = '';
+                    }
+
+                    if (checked_value == '0') {
+                        checked_1 = '';
+                        checked_2 = 'checked';
+                    }
+                }
+
+                options_el.innerHTML = `
+                <table>
+                  <tr>
+                    <th>Y</th>
+                    <th>N</th>
+                    <th></th>
+                  </tr>
+                  <tr>
+                    <td><input type="radio" onchange="option_check()" id="opt_O_1" name="options" value="1" ${checked_1} /></td>
+                    <td><input type="radio" onchange="option_check()" id="opt_O_2" name="options" value="0" ${checked_2} /></td>
+                    <td> ${o['value']} </td>
+                  </tr>
+                </table>
+                `
+            }
+
+            if (type == 1) {
+                // <input type="radio" id="" name="options" value="" />    
+                option_type = `<input type="radio" id="${o['id']}"  onchange="option_check()"  name="options" value="${o['value']}" ${checked} />`;
+                option_html = `<label for="options">${o['tag']}、${o['value']}</label>`
+                options_el.innerHTML = options_el.innerHTML + '<div>' + option_type + option_html +'</div>'
+            }
+            if (type == 2) {
+                // <input type="checkbox" id="" name="" /> 
+                option_type = `<input type="checkbox" id="${o['id']}"  onchange="option_check()"  name="options" value="${o['value']}" ${checked} />`;  
+                option_html = `<label for="${o['id']}">${o['tag']}、${o['value']}</label>`;
+                options_el.innerHTML = options_el.innerHTML + '<div>' + option_type + option_html +'</div>'
+            }            
+        });
+
+        Persistence.setItem('card_type', type)
+        Persistence.setItem('options', options);
+    }
+
+
+    function get_user_answers() {
+        let options_objs = document.getElementById('options').getElementsByTagName('input');
+
+        let chard_type = Persistence.getItem('card_type');
+
+        // checked 
+        let user_answers = []
+        for (var i = 0; i < options_objs.length; i++) {
+            let opt = options_objs[i];
+            if (opt.checked){
+                user_answers.push(opt.id);
+            }
+        }
+        
+        let options = Persistence.getItem('options');
+        
+        if (options == null) {
+            return []
+        }
+
+        Array.from(options).map( o => {
+                o['checked'] = false;
+                o['checked_value'] = null;
+        })
+
+        user_answers.map(o => {
+            let _ys_id = o;
+            opt = Array.from(options).find( o1 => {
+                if (chard_type == 0){
+                    o = 'O_1';
+                }
+                return o == o1['id'];
+            })
+            o = _ys_id;
+            if (opt != null) {
+                opt['checked'] = true;
+                opt['checked_value'] = document.getElementById(o).value;
+            }
+        })
+        Persistence.setItem('options', options)
+        return options
+    }
+
+    function option_check() {
+        get_user_answers()
+
+    }
+
+    function shuffle_order(arr) {
+        return arr.sort(function(){ 
+            return Math.random() - 0.5;
+        });
+    }
+
+    function run() {
+
+        if(Persistence.isAvailable()){
+            Persistence.clear();
+        }
+        generateOptions()
+    }
+
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function waitForReadyStateAndRun() {
+        for (let i = 0; i < 100; i++) {
+            if (document.readyState === "complete") {
+                run();
+                break;
+            }
+            console.log("Document not yet fully loaded (readyState: " + document.readyState + "). Retry in 0.1s.");
+            await sleep(100);
+        }
+    }
+
+    /*
+    The following block is inspired by Glutanimate's Cloze Overlapper card template.
+    The Cloze Overlapper card template is licensed under the CC BY-SA 4.0
+    license (https://creativecommons.org/licenses/by-sa/4.0/).
+    */
+    if (document.readyState === "complete") {
+        run();
+    } else {
+        waitForReadyStateAndRun();
+    }
+
+    // window.onload = run();
+</script>
+
+
